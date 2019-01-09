@@ -14,6 +14,7 @@ public class MainManager : MonoBehaviour
 		new Vector3(1.0f, 6.5f, 0.0f),
 		new Vector3(-7.0f, 6.5f, 0.0f)
 	};
+	float spawnPosY = 6.5f;
 	float shinySpawnTimer = 0.0f;
 	int[] shinySpawnCount = new int[2];
 	float waitTime = 5.0f;
@@ -24,7 +25,7 @@ public class MainManager : MonoBehaviour
 		MusicDataRead();
 		StartCoroutine("Wait");
 	}
-	void FixedUpdate ()
+	void Update ()
 	{
 		shinySpawnTimer += Time.deltaTime;
 		ShinySpawn();
@@ -53,7 +54,8 @@ public class MainManager : MonoBehaviour
 				{
 					if (noteDataRead[noteDataReadLine][0] != '*')
 					{
-						float time = 60.0f / musicData.bpm * (musicData.measure * 4.0f + noteDataReadLine * (4.0f / noteDataReadLineMax)) - 10.0f / musicData.speed;
+						float time = 60.0f / musicData.bpm * (musicData.measure * 4.0f + noteDataReadLine * (4.0f / noteDataReadLineMax)) - 10.0f / musicData.speed + waitTime + musicData.offset;
+						float posY = (time + waitTime) * musicData.speed + 6.5f;
 						ShinyData shinyData = new ShinyData(time, noteDataRead[noteDataReadLine]);
 						Debug.Log(shinyData.time);
 						musicData.shinyDataList[shinyDataListNum].Add(shinyData);
@@ -68,9 +70,11 @@ public class MainManager : MonoBehaviour
 	{
 		for (int shinyDataListNum = 0; shinyDataListNum < 2; shinyDataListNum++)
 		{
-			if (spawn[shinyDataListNum] && musicData.shinyDataList[shinyDataListNum][shinySpawnCount[shinyDataListNum]].time + musicData.offset + waitTime <= shinySpawnTimer)
+			if (spawn[shinyDataListNum] && musicData.shinyDataList[shinyDataListNum][shinySpawnCount[shinyDataListNum]].time <= shinySpawnTimer)
 			{
-				GameObject shinyInst = Instantiate(shinyPrefab, spawnPos[shinyDataListNum] + transform.right * musicData.shinyDataList[shinyDataListNum][shinySpawnCount[shinyDataListNum]].pos, Quaternion.identity);
+				float shinyPosY = (musicData.shinyDataList[shinyDataListNum][shinySpawnCount[shinyDataListNum]].time - shinySpawnTimer) * musicData.speed;
+				Debug.Log(shinyPosY);
+				GameObject shinyInst = Instantiate(shinyPrefab, spawnPos[shinyDataListNum] + new Vector3(musicData.shinyDataList[shinyDataListNum][shinySpawnCount[shinyDataListNum]].pos, shinyPosY, 0.0f), Quaternion.identity);
 				shinyInst.GetComponent<Destroy>().speed = musicData.speed;
 				shinyInst.GetComponent<Renderer>().material.color = musicData.color;
 				shinyInst.GetComponent<Renderer>().material.SetColor("_EmissionColor", musicData.color);
@@ -86,7 +90,7 @@ public class MainManager : MonoBehaviour
 	}
 	public void Particle(float pos)
 	{
-		Instantiate(particle, new Vector2(pos, -3.8f), Quaternion.identity);
+		Instantiate(particle, new Vector2(pos, -3.5f), Quaternion.identity);
 	}
 }
 public class MusicData
@@ -119,6 +123,7 @@ public class ShinyData
 {
 	public float time;
 	public float pos;
+	public float posY;
 	public ShinyData(float time, string shinyDataRead)
 	{
 		this.time = time;

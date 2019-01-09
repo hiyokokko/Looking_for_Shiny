@@ -5,7 +5,7 @@ public class Destroy : MonoBehaviour
 {
 	public float speed;
 	bool auto = false;
-	void Update ()
+	void FixedUpdate ()
 	{
 		transform.position -= transform.up * Time.deltaTime * speed;
 		if (auto & transform.position.y <= -3.5f)
