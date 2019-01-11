@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 public class MainManager : MonoBehaviour
 {
-	[SerializeField] ParticleSystem particle;
-
+	[SerializeField] GameObject note;
 	[SerializeField] TextAsset musicDataText;
 	[SerializeField] AudioSource musicSource;
 	[SerializeField] GameObject shinyPrefab;
+	float parfectPos = -3.5f;
+	public static GameObject[] lift;
+
 	MusicData musicData;
 	Vector3[] spawnPos = new Vector3[2]
 	{
@@ -18,10 +20,19 @@ public class MainManager : MonoBehaviour
 	float shinySpawnTimer = 0.0f;
 	int[] shinySpawnCount = new int[2];
 	float waitTime = 5.0f;
-	bool[] spawn = new bool[2]{
-		true,true };
+	static int[] judgeCount = new int[3];
+	bool[] spawn = new bool[2]
+	{
+		true,
+		true
+	};
 	void Start ()
 	{
+		lift = new GameObject[2]
+		{
+			GameObject.Find("RightLift"),
+			GameObject.Find("LeftLift")
+		};
 		MusicDataRead();
 		StartCoroutine("Wait");
 	}
@@ -45,7 +56,7 @@ public class MainManager : MonoBehaviour
 		{
 			musicDataReadLine++;
 			//0:右側のノーツ情報読み込み、1:左側のノーツで情報読み込み、2:ループ終了。
-			for (int shinyDataListNum = 0; shinyDataListNum < 2; shinyDataListNum++)
+			for (Lane lane = Lane.RightLane; lane != Lane.NONE; lane++)
 			{
 				string[] noteDataRead = musicDataRead[musicDataReadLine++].Split(' ');
 				int noteDataReadLine = 0;
@@ -55,10 +66,8 @@ public class MainManager : MonoBehaviour
 					if (noteDataRead[noteDataReadLine][0] != '*')
 					{
 						float time = 60.0f / musicData.bpm * (musicData.measure * 4.0f + noteDataReadLine * (4.0f / noteDataReadLineMax)) - 10.0f / musicData.speed + waitTime + musicData.offset;
-						float posY = (time + waitTime) * musicData.speed + 6.5f;
-						ShinyData shinyData = new ShinyData(time, noteDataRead[noteDataReadLine]);
-						Debug.Log(shinyData.time);
-						musicData.shinyDataList[shinyDataListNum].Add(shinyData);
+						NoteData shinyData = new NoteData(time, noteDataRead[noteDataReadLine]);
+						musicData.noteDataList[(int)lane].Add(shinyData);
 					}
 					noteDataReadLine++;
 				}
@@ -68,65 +77,40 @@ public class MainManager : MonoBehaviour
 	}
 	void ShinySpawn()
 	{
-		for (int shinyDataListNum = 0; shinyDataListNum < 2; shinyDataListNum++)
+		for (Lane lane = Lane.RightLane; lane != Lane.NONE; lane++)
 		{
-			if (spawn[shinyDataListNum] && musicData.shinyDataList[shinyDataListNum][shinySpawnCount[shinyDataListNum]].time <= shinySpawnTimer)
+			if (spawn[(int)lane] && musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].time <= shinySpawnTimer)
 			{
-				float shinyPosY = (musicData.shinyDataList[shinyDataListNum][shinySpawnCount[shinyDataListNum]].time - shinySpawnTimer) * musicData.speed;
-				Debug.Log(shinyPosY);
-				GameObject shinyInst = Instantiate(shinyPrefab, spawnPos[shinyDataListNum] + new Vector3(musicData.shinyDataList[shinyDataListNum][shinySpawnCount[shinyDataListNum]].pos, shinyPosY, 0.0f), Quaternion.identity);
-				shinyInst.GetComponent<Destroy>().speed = musicData.speed;
-				shinyInst.GetComponent<Renderer>().material.color = musicData.color;
-				shinyInst.GetComponent<Renderer>().material.SetColor("_EmissionColor", musicData.color);
-				ParticleSystem.MainModule shinyParticle = shinyInst.GetComponentInChildren<ParticleSystem>().main;
-				shinyParticle.startColor = musicData.color;
-				shinySpawnCount[shinyDataListNum]++;
-				if (shinySpawnCount[shinyDataListNum] == musicData.shinyDataList[shinyDataListNum].Count)
+				Vector3 notePos = spawnPos[(int)lane] + new Vector3(musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].pos, (musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].time - shinySpawnTimer) * musicData.speed, 10.0f);
+				GameObject noteInst = Instantiate(note, notePos, Quaternion.identity);
+				noteInst.GetComponent<Note>().speed = musicData.speed;
+				noteInst.GetComponent<Note>().lane = lane;
+				noteInst.GetComponent<Renderer>().material.color = musicData.color;
+				noteInst.GetComponent<Renderer>().material.SetColor("_EmissionColor", musicData.color);
+				shinySpawnCount[(int)lane]++;
+				if (shinySpawnCount[(int)lane] == musicData.noteDataList[(int)lane].Count)
 				{
-					spawn[shinyDataListNum] = false;
+					spawn[(int)lane] = false;
 				}
 			}
 		}
 	}
-	public void Particle(float pos)
+	public static void JudgeResult(Judge judge, Vector3 notePos)
 	{
-		Instantiate(particle, new Vector2(pos, -3.5f), Quaternion.identity);
+		judgeCount[(int)judge]++;
+		JudgeText.JudgeTextDisplay(judge);
 	}
 }
-public class MusicData
+public enum Judge
 {
-	public string title;
-	public string artist;
-	public float bpm;
-	public float offset;
-	public float speed;
-	public Color color;
-	public int measure = 0;
-	//0:右側のシャイニー情報リスト、1:左側のシャイニー情報リスト。
-	public List<ShinyData>[] shinyDataList = new List<ShinyData>[2]
-	{
-		new List<ShinyData>(),
-		new List<ShinyData>()
-	};
-	public MusicData(string[] musicDataRead, ref int musicDataReadLine)
-	{
-		title = musicDataRead[musicDataReadLine++];
-		artist = musicDataRead[musicDataReadLine++];
-		bpm = float.Parse(musicDataRead[musicDataReadLine++]);
-		offset = float.Parse(musicDataRead[musicDataReadLine++]);
-		speed = float.Parse(musicDataRead[musicDataReadLine++]);
-		string[] colorData = musicDataRead[musicDataReadLine++].Split('/');
-		color = new Color(float.Parse(colorData[0]), float.Parse(colorData[1]), float.Parse(colorData[2]), 1.0f);
-	}
+	PERFECT = 0,
+	GREAT = 1,
+	MISS = 2,
+	NONE = 3
 }
-public class ShinyData
+public enum Lane
 {
-	public float time;
-	public float pos;
-	public float posY;
-	public ShinyData(float time, string shinyDataRead)
-	{
-		this.time = time;
-		pos = float.Parse(shinyDataRead);
-	}
+	RightLane = 0,
+	LeftLane = 1,
+	NONE = 2
 }
