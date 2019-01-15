@@ -3,32 +3,30 @@ using UnityEngine.UI;
 public class ComboText : MonoBehaviour
 {
 	static Text comboText;
-	static Color comboTextColor = new Color(1.0f, 1.0f, 0.0f, 1.0f);
-	static bool comboTextFade = false;
-	float comboTextFadeSpeed = 5.0f;
+	static CanvasGroup canvasGroup;
+	static bool judgeTextFade = false;
+	float judgeTextFadeSpeed = 5.0f;
 	void Start()
 	{
 		comboText = GetComponent<Text>();
+		canvasGroup = GetComponent<CanvasGroup>();
 	}
 	void Update()
 	{
-		if (comboTextFade) JudgeTextFade();
+		if (judgeTextFade) JudgeTextFade();
 	}
 	void JudgeTextFade()
 	{
-		Color tempColor = comboText.color;
-		tempColor.a -= Time.deltaTime * comboTextFadeSpeed;
-		if (tempColor.a < 0)
+		canvasGroup.alpha -= Time.deltaTime * judgeTextFadeSpeed;
+		if (canvasGroup.alpha == 0)
 		{
-			tempColor.a = 0;
-			comboTextFade = false;
+			judgeTextFade = false;
 		}
-		comboText.color = tempColor;
 	}
 	public static void ComboTextDisplay(int combo)
 	{
-		comboText.text = combo.ToString() + " combo";
-		comboText.color = comboTextColor;
-		comboTextFade = true;
+		comboText.text = combo.ToString();
+		canvasGroup.alpha = 1;
+		judgeTextFade = true;
 	}
 }

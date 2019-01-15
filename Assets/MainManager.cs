@@ -82,7 +82,8 @@ public class MainManager : MonoBehaviour
 		{
 			if (spawn[(int)lane] && musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].time <= shinySpawnTimer)
 			{
-				Vector3 notePos = spawnPos[(int)lane] + new Vector3(musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].pos, (musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].time - shinySpawnTimer) * musicData.speed, 0.0f);
+				float gapPos = (musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].time - shinySpawnTimer) * musicData.speed;
+				Vector3 notePos = spawnPos[(int)lane] + new Vector3(musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].pos, gapPos, gapPos);
 				GameObject noteInst = Instantiate(note, notePos, Quaternion.identity);
 				noteInst.GetComponent<Note>().speed = musicData.speed;
 				noteInst.GetComponent<Note>().lane = lane;
@@ -99,24 +100,23 @@ public class MainManager : MonoBehaviour
 	public static void JudgeResult(Judge judge, Vector3 notePos)
 	{
 		judgeCount[(int)judge]++;
-		if (judge != Judge.MISS)
+		if (judge == Judge.SHINY)
 		{
 			combo++;
+			ComboText.ComboTextDisplay(combo);
 		}
 		else
 		{
 			combo = 0;
 		}
 		JudgeText.JudgeTextDisplay(judge);
-		ComboText.ComboTextDisplay(combo);
 	}
 }
 public enum Judge
 {
-	PERFECT = 0,
-	GREAT = 1,
-	MISS = 2,
-	NONE = 3
+	SHINY = 0,
+	MISS = 1,
+	NONE = 2
 }
 public enum Lane
 {

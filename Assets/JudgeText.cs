@@ -3,6 +3,7 @@ using UnityEngine.UI;
 public class JudgeText : MonoBehaviour
 {
 	static Text judgeText;
+	static CanvasGroup canvasGroup;
 	static Color[] judgeTextColor = new Color[3]
 	{
 		new Color(1.0f, 0.0f, 0.0f, 1.0f),
@@ -14,6 +15,7 @@ public class JudgeText : MonoBehaviour
 	void Start()
 	{
 		judgeText = GetComponent<Text>();
+		canvasGroup = GetComponent<CanvasGroup>();
 	}
 	void Update ()
 	{
@@ -21,19 +23,23 @@ public class JudgeText : MonoBehaviour
 	}
 	void JudgeTextFade()
 	{
-		Color tempColor = judgeText.color;
-		tempColor.a -= Time.deltaTime * judgeTextFadeSpeed;
-		if (tempColor.a < 0)
+		canvasGroup.alpha -= Time.deltaTime * judgeTextFadeSpeed;
+		if (canvasGroup.alpha == 0)
 		{
-			tempColor.a = 0;
 			judgeTextFade = false;
 		}
-		judgeText.color = tempColor;
 	}
 	public static void JudgeTextDisplay(Judge judge)
 	{
-		judgeText.text = judge.ToString();
-		judgeText.color = judgeTextColor[(int)judge];
+		if (judge == Judge.SHINY)
+		{
+			judgeText.text = "<color=#ff0000>S</color><color=#ffff00>H</color><color=#00ff00>I</color><color=#00ffff>N</color><color=#0000ff>Y</color><color=#ff00ff>!</color>";
+		}
+		else
+		{
+			judgeText.text = "MISS";
+		}
+		canvasGroup.alpha = 1;
 		judgeTextFade = true;
 	}
 }
