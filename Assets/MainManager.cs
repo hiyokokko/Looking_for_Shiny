@@ -21,6 +21,7 @@ public class MainManager : MonoBehaviour
 	int[] shinySpawnCount = new int[2];
 	float waitTime = 5.0f;
 	static int[] judgeCount = new int[3];
+	static int combo = 0;
 	bool[] spawn = new bool[2]
 	{
 		true,
@@ -98,7 +99,16 @@ public class MainManager : MonoBehaviour
 	public static void JudgeResult(Judge judge, Vector3 notePos)
 	{
 		judgeCount[(int)judge]++;
+		if (judge != Judge.MISS)
+		{
+			combo++;
+		}
+		else
+		{
+			combo = 0;
+		}
 		JudgeText.JudgeTextDisplay(judge);
+		ComboText.ComboTextDisplay(combo);
 	}
 }
 public enum Judge
