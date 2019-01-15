@@ -13,8 +13,8 @@ public class MainManager : MonoBehaviour
 	MusicData musicData;
 	Vector3[] spawnPos = new Vector3[2]
 	{
-		new Vector3(1.0f, 6.5f, 0.0f),
-		new Vector3(-7.0f, 6.5f, 0.0f)
+		new Vector3(1.0f, 32.0f, 32.0f),
+		new Vector3(-7.0f, 32.0f, 32.0f)
 	};
 	float spawnPosY = 6.5f;
 	float shinySpawnTimer = 0.0f;
@@ -65,7 +65,7 @@ public class MainManager : MonoBehaviour
 				{
 					if (noteDataRead[noteDataReadLine][0] != '*')
 					{
-						float time = 60.0f / musicData.bpm * (musicData.measure * 4.0f + noteDataReadLine * (4.0f / noteDataReadLineMax)) - 10.0f / musicData.speed + waitTime + musicData.offset;
+						float time = 60.0f / musicData.bpm * (musicData.measure * 4.0f + noteDataReadLine * (4.0f / noteDataReadLineMax)) - (32.0f - 0.25f) / musicData.speed + waitTime + musicData.offset;
 						NoteData shinyData = new NoteData(time, noteDataRead[noteDataReadLine]);
 						musicData.noteDataList[(int)lane].Add(shinyData);
 					}
@@ -81,7 +81,7 @@ public class MainManager : MonoBehaviour
 		{
 			if (spawn[(int)lane] && musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].time <= shinySpawnTimer)
 			{
-				Vector3 notePos = spawnPos[(int)lane] + new Vector3(musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].pos, (musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].time - shinySpawnTimer) * musicData.speed, 10.0f);
+				Vector3 notePos = spawnPos[(int)lane] + new Vector3(musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].pos, (musicData.noteDataList[(int)lane][shinySpawnCount[(int)lane]].time - shinySpawnTimer) * musicData.speed, 0.0f);
 				GameObject noteInst = Instantiate(note, notePos, Quaternion.identity);
 				noteInst.GetComponent<Note>().speed = musicData.speed;
 				noteInst.GetComponent<Note>().lane = lane;

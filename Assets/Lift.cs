@@ -17,12 +17,12 @@ public class Lift : MonoBehaviour
 		{
 			Vector3 nowScreenMousePos = Input.mousePosition;
 			nowScreenMousePos.z = cam.transform.position.z;
-			Vector2 nowWorldMousePos = cam.ScreenToWorldPoint(nowScreenMousePos);
+			Vector2 nowWorldMousePos = -cam.ScreenToWorldPoint(nowScreenMousePos);
 			Debug.Log(nowWorldMousePos);
 			if (nowWorldMousePos.x >= thisPos.x - size / 2 &&
 				nowWorldMousePos.x <= thisPos.x + size / 2 &&
-				nowWorldMousePos.y >= thisPos.y - size / 2 &&
-				nowWorldMousePos.y <= thisPos.y + size / 2)
+				nowWorldMousePos.y >= -9.0f &&
+				nowWorldMousePos.y <= -6.0f)
 			{
 				thisNowMove = true;
 				beforeWorldMousePos = nowWorldMousePos;
@@ -41,7 +41,7 @@ public class Lift : MonoBehaviour
 	{
 		Vector3 nowScreenMousePos = Input.mousePosition;
 		nowScreenMousePos.z = cam.transform.position.z;
-		Vector2 nowWorldMousePos = cam.ScreenToWorldPoint(nowScreenMousePos);
+		Vector2 nowWorldMousePos = -cam.ScreenToWorldPoint(nowScreenMousePos);
 		transform.position += transform.right * (nowWorldMousePos.x - beforeWorldMousePos.x);
 		thisPos = transform.position;
 		beforeWorldMousePos = nowWorldMousePos;

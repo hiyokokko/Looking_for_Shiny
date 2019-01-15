@@ -9,6 +9,7 @@ public class Note : MonoBehaviour
 	void FixedUpdate ()
 	{
 		transform.position -= transform.up * Time.deltaTime * speed;
+		transform.position -= transform.forward * Time.deltaTime * speed;
 		JudgeCheck();
 		
 	}
@@ -17,12 +18,20 @@ public class Note : MonoBehaviour
 		switch (judge)
 		{
 			case Judge.PERFECT:
-				if (transform.position.y <= -3.5f)
+				if (transform.position.y <= 0.0f)
 				{
 					float liftPos = MainManager.lift[(int)lane].transform.position.x;
 					if (transform.position.x - (transform.localScale.x + MainManager.lift[(int)lane].transform.localScale.x / 2) < liftPos && liftPos < transform.position.x + (transform.localScale.x + MainManager.lift[(int)lane].transform.localScale.x / 2))
 					{
 						MainManager.JudgeResult(judge, transform.position);
+						if (lane == Lane.RightLane)
+						{
+							GameObject.Find("ShinySourceRight").GetComponent<AudioSource>().Play();
+						}
+						else
+						{
+							GameObject.Find("ShinySourceLeft").GetComponent<AudioSource>().Play();
+						}
 						Instantiate(noteBreakParticle, transform.position, Quaternion.identity);
 						Destroy(gameObject);
 					}
@@ -30,16 +39,23 @@ public class Note : MonoBehaviour
 					{
 						judge++;
 					}
-					GameObject.Find("ShinySource").GetComponent<AudioSource>().Play();
 				}
 				break;
 			case Judge.GREAT:
-				if (transform.position.y >= -4.1f)
+				if (transform.position.y >= 0.6f)
 				{
 					float liftPos = MainManager.lift[(int)lane].transform.position.x;
 					if (transform.position.x - (transform.localScale.x + MainManager.lift[(int)lane].transform.localScale.x / 2) < liftPos && liftPos < transform.position.x + (transform.localScale.x + MainManager.lift[(int)lane].transform.localScale.x / 2))
 					{
 						MainManager.JudgeResult(judge, transform.position);
+						if (lane == Lane.RightLane)
+						{
+							GameObject.Find("ShinySourceRight").GetComponent<AudioSource>().Play();
+						}
+						else
+						{
+							GameObject.Find("ShinySourceLeft").GetComponent<AudioSource>().Play();
+						}
 						Instantiate(noteBreakParticle, transform.position, Quaternion.identity);
 						Destroy(gameObject);
 					}
