@@ -10,7 +10,7 @@ public class MainManager : MonoBehaviour
 	float parfectPos = -3.5f;
 	public static GameObject[] lift;
 
-	MusicData musicData;
+	static MusicData musicData;
 	Vector3[] spawnPos = new Vector3[2]
 	{
 		new Vector3(1.0f, 32.0f, 32.0f),
@@ -22,6 +22,9 @@ public class MainManager : MonoBehaviour
 	float waitTime = 5.0f;
 	static int[] judgeCount = new int[3];
 	static int combo = 0;
+	static int score = 0;
+	static int health = 1000;
+	static int healthMax = 1000;
 	bool[] spawn = new bool[2]
 	{
 		true,
@@ -104,12 +107,26 @@ public class MainManager : MonoBehaviour
 		{
 			combo++;
 			ComboText.ComboTextDisplay(combo);
+			score += (int)(combo * float.Parse(Mathf.Sqrt(combo).ToString("F1")));
+			ScoreText.ScoreTextDisplay(score);
+			health += musicData.heel;
+			if (health > healthMax)
+			{
+				health = healthMax;
+			}
 		}
 		else
 		{
 			combo = 0;
+			health -= musicData.damage;
+			if (health <= 0)
+			{
+				health = 0;
+			}
 		}
 		JudgeText.JudgeTextDisplay(judge);
+		HealthText.HealthTextDisplay(health);
+		HealthBar.HealthBarDisplay(health);
 	}
 }
 public enum Judge

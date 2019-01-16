@@ -8,6 +8,8 @@ public class MusicData
 	public float offset;
 	public float speed;
 	public Color color;
+	public int damage;
+	public int heel;
 	public int measure = 0;
 	//0:右側のノーツ情報リスト、1:左側のノーツ情報リスト。
 	public List<NoteData>[] noteDataList = new List<NoteData>[2]
@@ -24,5 +26,7 @@ public class MusicData
 		speed = float.Parse(musicDataRead[musicDataReadLine++]);
 		string[] colorData = musicDataRead[musicDataReadLine++].Split('/');
 		color = new Color(float.Parse(colorData[0]), float.Parse(colorData[1]), float.Parse(colorData[2]), 1.0f);
+		damage = int.Parse(musicDataRead[musicDataReadLine++]);
+		heel = int.Parse(musicDataRead[musicDataReadLine++]);
 	}
 }
