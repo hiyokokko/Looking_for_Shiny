@@ -20,9 +20,10 @@ public class MainManager : MonoBehaviour
 	float shinySpawnTimer = 0.0f;
 	int[] shinySpawnCount = new int[2];
 	float waitTime = 5.0f;
-	static int[] judgeCount = new int[3];
-	static int combo = 0;
-	static int score = 0;
+	public static int[] judgeCount = new int[2];
+	public static int combo = 0;
+	public static int comboMax = 0;
+	public static int score = 0;
 	static int health = 1000;
 	static int healthMax = 1000;
 	bool[] spawn = new bool[2]
@@ -106,6 +107,7 @@ public class MainManager : MonoBehaviour
 		if (judge == Judge.SHINY)
 		{
 			combo++;
+			comboMax = Mathf.Max(comboMax, combo);
 			ComboText.ComboTextDisplay(combo);
 			score += (int)(combo * float.Parse(Mathf.Sqrt(combo).ToString("F1")));
 			ScoreText.ScoreTextDisplay(score);
