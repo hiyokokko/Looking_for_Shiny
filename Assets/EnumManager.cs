@@ -3,7 +3,8 @@
 	perfect = 0,
 	great = 1,
 	good = 2,
-	bad = 3
+	bad = 3,
+	miss = 4
 }
 public enum LaneEnum
 {

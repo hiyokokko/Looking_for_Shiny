@@ -20,8 +20,8 @@ public class GameSceneManager : MonoBehaviour
 	[SerializeField] GameObject notePrefab;
 	Vector3[] noteBasicPos = new Vector3[2]
 	{
-		new Vector3(1.0f, 32.0f, 32.0f),
-		new Vector3(-7.0f, 32.0f, 32.0f)
+		new Vector3(1.0f, 24.0f, 24.0f),
+		new Vector3(-7.0f, 24.0f, 24.0f)
 	};
 	List<NoteData>[] noteDatas;
 	List<NoteData>[] noteInstDatas;
@@ -43,35 +43,40 @@ public class GameSceneManager : MonoBehaviour
 	/////////////////////////////////////////////
 
 	//判定関連 変数宣言//////////////////////////
-	[SerializeField] bool autoPlay;
-	float[] tapJudgeTime = new float[3]
+	[SerializeField] bool[] autoPlay;
+	float[] tapJudgeTime = new float[4]
 	{
 		0.033f,
 		0.066f,
-		0.099f
+		0.099f,
+		0.132f
 	};
-	float[] holdJudgePos = new float[3]
+	float[] holdJudgePos = new float[4]
 	{
 		0.6f,
 		0.9f,
-		1.2f
+		1.2f,
+		1.5f
 	};
-	float[] scoreJudgeCoef = new float[4]
+	int[] judgeCoef = new int[5]
 	{
-		4.0f,
-		2.0f,
-		1.0f,
-		0.0f
+		4,
+		2,
+		1,
+		0,
+		0
 	};
-	float[] scoreFeverCoef = new float[2]
+	int[] feverCoef = new int[2]
 	{
-		1.0f,
-		2.0f
+		1,
+		2
 	};
-	int maxHealth = 1000;
-	float tapJudgePosX = 1.2f;
-	public static RecordData recordData;
+	int maxHealth = 10000;
+	float tapJudgePosX = 1.5f;
+	int score;
+	int[] judge;
 	int nowCombo;
+	int maxCombo;
 	int nowHealth;
 	/////////////////////////////////////////////
 
@@ -109,8 +114,10 @@ public class GameSceneManager : MonoBehaviour
 		liftActive = new bool[2];
 		touchDown = false;
 		touchUp = false;
-		recordData = new RecordData();
+		score = 0;
+		judge = new int[5];
 		nowCombo = 0;
+		maxCombo = 0;
 		nowHealth = maxHealth;
 		judgeTextFadeOut = false;
 		comboTextFadeOut = false;
@@ -169,12 +176,18 @@ public class GameSceneManager : MonoBehaviour
 		{
 			int laneInt = (int)laneEnum;
 			NoteSpawn(laneEnum);
-			if (autoPlay && noteInstDatas[laneInt].Count > 0) AutoPlay(laneEnum);
+			if (autoPlay[laneInt] && noteInstDatas[laneInt].Count > 0) AutoPlay(laneEnum);
 			for (int noteNum = 0; noteNum != noteInstDatas[laneInt].Count; noteNum++)
 			{
 				NoteMove(laneEnum, noteNum);
-				if (noteInstDatas[laneInt][noteNum].holdJudge) HoldJudgeCheck(laneEnum, noteNum);
-				BadJudgeCheck(laneEnum, ref noteNum);
+				if (noteInstDatas[laneInt][noteNum].holdJudge)
+				{
+					if (HoldJudgeCheck(laneEnum, noteNum)) noteNum--;
+				}
+				else
+				{
+					if (MissJudgeCheck(laneEnum, noteNum)) noteNum--;
+				}
 			}
 		}
 		songPlayingTime += Time.fixedDeltaTime;
@@ -286,45 +299,38 @@ public class GameSceneManager : MonoBehaviour
 		int judgeInt = (int)judgeEnum;
 		int laneInt = (int)laneEnum;
 		int feverInt = (int)noteInstDatas[laneInt][noteNum].feverEnum;
-		float scoreCoef = scoreJudgeCoef[judgeInt] * scoreFeverCoef[feverInt];
-		switch (judgeEnum)
-		{
-			case JudgeEnum.perfect:
-				judgeAudio.Play();
-				nowCombo++;
-				recordData.score += (int)(scoreCoef * nowCombo * float.Parse(Mathf.Sqrt(nowCombo).ToString("F2")));
-				nowHealth = nowHealth + SelectSceneManager.musicData.heel < maxHealth ? nowHealth + SelectSceneManager.musicData.heel : maxHealth;
-				break;
-			case JudgeEnum.great:
-				judgeAudio.Play();
-				nowCombo++;
-				recordData.score += (int)(scoreCoef * nowCombo * float.Parse(Mathf.Sqrt(nowCombo).ToString("F2")));
-				nowHealth = nowHealth + SelectSceneManager.musicData.heel < maxHealth ? nowHealth + SelectSceneManager.musicData.heel : maxHealth;
-				break;
-			case JudgeEnum.good:
-				nowCombo /= 2;
-				recordData.score += (int)(scoreCoef * nowCombo * float.Parse(Mathf.Sqrt(nowCombo).ToString("F2")));
-				break;
-			case JudgeEnum.bad:
-				nowCombo = 0;
-				nowHealth = nowHealth - SelectSceneManager.musicData.damage > 0 ? nowHealth - SelectSceneManager.musicData.damage : 0;
-				break;
-		}
-		recordData.judge[judgeInt]++;
+		judge[judgeInt]++;
 		JudgeTextUpdate(judgeEnum);
-		ComboTextUpdate();
-		ScoreTextUpdate();
+		if (judgeEnum == JudgeEnum.perfect || judgeEnum == JudgeEnum.great || judgeEnum == JudgeEnum.good)
+		{
+			int tempJudgeCoef = judgeCoef[judgeInt];
+			int tempFeverCoef = feverCoef[feverInt];
+			int tempHealth = nowHealth + tempJudgeCoef * tempFeverCoef * SelectSceneManager.musicData.heel;
+			judgeAudio.Play();
+			nowCombo++;
+			score += (int)(tempJudgeCoef * tempFeverCoef * tempJudgeCoef * nowCombo * float.Parse(Mathf.Sqrt(nowCombo).ToString("F2")));
+			nowHealth = tempHealth <= maxHealth ? tempHealth : maxHealth;
+			ScoreTextUpdate();
+			ComboTextUpdate();
+		}
+		else if (judgeEnum == JudgeEnum.bad || judgeEnum == JudgeEnum.miss)
+		{
+			int tempFeverCoef = feverCoef[feverInt];
+			int tempHealth = nowHealth - tempFeverCoef * SelectSceneManager.musicData.damage;
+			nowCombo = 0;
+			nowHealth = tempHealth >= 0 ? tempHealth : 0;
+		}
 		HealthTextUpdate();
 		HealthBarImageUpdate();
 		Destroy(noteInstDatas[laneInt][noteNum].noteInst);
 		noteInstDatas[laneInt].RemoveAt(noteNum);
 	}
-	void TapJudgeCheck(LaneEnum laneEnum)
+	void TapJudgeCheck(LaneEnum laneEnum, int noteNum)
 	{
 		int laneInt = (int)laneEnum;
-		int noteNum = 0;
 		float liftPosX = lift[laneInt].transform.position.x;
-		if (noteInstDatas[laneInt].Count > noteNum && liftPosX + tapJudgePosX >= noteInstDatas[laneInt][noteNum].noteInst.transform.position.x - tapJudgePosX && liftPosX - tapJudgePosX <= noteInstDatas[laneInt][noteNum].noteInst.transform.position.x + tapJudgePosX)
+		float notePosX = noteInstDatas[laneInt][noteNum].noteInst.transform.position.x;
+		if (liftPosX + tapJudgePosX >= notePosX - tapJudgePosX && liftPosX - tapJudgePosX <= notePosX + tapJudgePosX)
 		{
 			float notePerfectJudgeTime = noteInstDatas[laneInt][noteNum].notePerfectJudgeTime;
 			for (JudgeEnum judgeEnum = JudgeEnum.perfect; judgeEnum != JudgeEnum.bad; judgeEnum++)
@@ -333,25 +339,43 @@ public class GameSceneManager : MonoBehaviour
 				if (songPlayingTime >= notePerfectJudgeTime - tapJudgeTime[judgeInt] && songPlayingTime <= notePerfectJudgeTime + tapJudgeTime[judgeInt])
 				{
 					Judge(judgeEnum, laneEnum, noteNum);
-					break;
+					return;
 				}
 			}
-			
 		}
 	}
-	void HoldJudgeCheck(LaneEnum laneEnum, int noteNum)
-	{
-		
-	}
-	void BadJudgeCheck(LaneEnum laneEnum, ref int noteNum)
+	bool HoldJudgeCheck(LaneEnum laneEnum, int noteNum)
 	{
 		int laneInt = (int)laneEnum;
 		float notePerfectJudgeTime = noteInstDatas[laneInt][noteNum].notePerfectJudgeTime;
-		if (songPlayingTime > notePerfectJudgeTime + tapJudgeTime[(int)JudgeEnum.good])
+		if (songPlayingTime >= notePerfectJudgeTime)
 		{
-			Judge(JudgeEnum.bad, laneEnum, noteNum);
-			noteNum--;
+			noteInstDatas[laneInt][noteNum].holdJudge = false;
+			if (!liftActive[laneInt]) return false;
+			float liftPosX = lift[laneInt].transform.position.x;
+			float notePosX = noteInstDatas[laneInt][noteNum].noteInst.transform.position.x;
+			for (JudgeEnum judgeEnum = JudgeEnum.perfect; judgeEnum != JudgeEnum.bad; judgeEnum++)
+			{
+				int judgeInt = (int)judgeEnum;
+				if (liftPosX + holdJudgePos[judgeInt] >= notePosX - holdJudgePos[judgeInt] && liftPosX - holdJudgePos[judgeInt] <= notePosX + holdJudgePos[judgeInt])
+				{
+					Judge(judgeEnum, laneEnum, noteNum);
+					return true;
+				}
+			}
 		}
+		return false;
+	}
+	bool MissJudgeCheck(LaneEnum laneEnum, int noteNum)
+	{
+		int laneInt = (int)laneEnum;
+		float notePerfectJudgeTime = noteInstDatas[laneInt][noteNum].notePerfectJudgeTime;
+		if (songPlayingTime > notePerfectJudgeTime + tapJudgeTime[(int)JudgeEnum.bad])
+		{
+			Judge(JudgeEnum.miss, laneEnum, noteNum);
+			return true;
+		}
+		return false;
 	}
 	void AutoPlay(LaneEnum laneEnum)
 	{
@@ -374,7 +398,7 @@ public class GameSceneManager : MonoBehaviour
 			lift[laneInt].SetActive(true);
 			liftActive[laneInt] = true;
 			LiftActive(laneEnum);
-			TapJudgeCheck(laneEnum);
+			if (noteInstDatas[laneInt].Count > 0) TapJudgeCheck(laneEnum, 0);
 		}
 	}
 	void TouchUp()
@@ -420,6 +444,10 @@ public class GameSceneManager : MonoBehaviour
 				//青色で"ばっど"
 				judgeText.text = "<color=#0000ff>ばっど</color>";
 				break;
+			case JudgeEnum.miss:
+				//灰色で"みす"
+				judgeText.text = "<color=#7f7f7f>みす</color>";
+				break;
 		}
 		judgeTextCanvasGroup.alpha = 1;
 		judgeTextFadeOut = true;
@@ -432,7 +460,7 @@ public class GameSceneManager : MonoBehaviour
 	}
 	void ScoreTextUpdate()
 	{
-		scoreText.text = "Score" + '\n' + '\n' + recordData.score.ToString();
+		scoreText.text = "Score" + '\n' + '\n' + score.ToString();
 	}
 	void HealthTextUpdate()
 	{
@@ -440,7 +468,7 @@ public class GameSceneManager : MonoBehaviour
 	}
 	void HealthBarImageUpdate()
 	{
-		healthBarImage.fillAmount = nowHealth / 1000.0f;
+		healthBarImage.fillAmount = (float)nowHealth / maxHealth;
 	}
 	bool TextFadeOut(CanvasGroup canvasGroup)
 	{
