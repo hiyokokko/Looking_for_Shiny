@@ -13,6 +13,8 @@ public class SelectSceneManager : MonoBehaviour
 	public static float noteBasicSpeed;
 	public static Color[] noteColor;
 	public static Color liftColor;
+	public static Color liftLineColor;
+	public static float judgeGapTime;
 	/////////////////////////////////////////////
 	void Awake()
 	{
@@ -23,10 +25,12 @@ public class SelectSceneManager : MonoBehaviour
 		noteBasicSpeed = 32.0f;
 		noteColor = new Color[2]
 		{
-			new Color(0.0f, 1.0f, 1.0f, 1.0f),
-			new Color(0.0f, 0.0f, 1.0f, 1.0f)
+			new Color(1.0f, 0.25f, 1.0f, 1.0f),
+			new Color(1.0f, 0.0f, 1.0f, 1.0f)
 		};
-		liftColor = new Color(1.0f, 0.5f, 0.0f, 1.0f);
+		liftColor = new Color(1.0f, 127 / 255f, 0.0f, 1.0f);
+		liftLineColor = new Color(1.0f, 127 / 255f, 0.0f, 15 / 255f);
+		judgeGapTime = 0.050f;
 	}
 	void Start ()
 	{
@@ -50,8 +54,9 @@ public class SelectSceneManager : MonoBehaviour
 			artist = musicDataRead[musicDataReadLine++],
 			basicBpm = float.Parse(musicDataRead[musicDataReadLine++]),
 			offset = float.Parse(musicDataRead[musicDataReadLine++]),
-			damage = int.Parse(musicDataRead[musicDataReadLine++]),
-			heel = int.Parse(musicDataRead[musicDataReadLine])
+			difficulty = float.Parse(musicDataRead[musicDataReadLine++]),
+			damage = float.Parse(musicDataRead[musicDataReadLine++]),
+			heel = float.Parse(musicDataRead[musicDataReadLine])
 		};
 	}
 }

@@ -4,20 +4,23 @@ using UnityEngine.UI;
 public class GameSceneManager : MonoBehaviour
 {
 	//全般 変数宣言//////////////////////////////
-	[SerializeField] Camera camera;
+	[SerializeField] Camera cam;
 	float time;
 	/////////////////////////////////////////////
 
 	//サウンド関連 変数宣言//////////////////////
 	[SerializeField] AudioSource songAudio;
 	[SerializeField] AudioSource judgeAudio;
+	[SerializeField] AudioClip judgeClip;
 	float songPlayWaitTime = 5.0f;
 	bool songPlaying;
 	float songPlayingTime;
+	float songPlayingUpdateTime;
 	/////////////////////////////////////////////
 
 	//ノーツ関連 変数宣言////////////////////////
-	[SerializeField] GameObject notePrefab;
+	[SerializeField] Transform notePrefab;
+	[SerializeField] ParticleSystem noteParticlePrefab;
 	Vector3[] noteBasicPos = new Vector3[2]
 	{
 		new Vector3(1.0f, 24.0f, 24.0f),
@@ -30,16 +33,19 @@ public class GameSceneManager : MonoBehaviour
 	/////////////////////////////////////////////
 
 	//タッチ関連 変数宣言////////////////////////
-	[SerializeField] GameObject[] lift;
+	[SerializeField] Transform[] lift;
+	[SerializeField] Transform[] liftLine;
 	Vector2 halfScreenPos = new Vector2(960.0f, 540.0f);
 	Vector2[] liftPosRest = new Vector2[2]
 	{
 		new Vector2(1.0f, 7.0f),
 		new Vector2(-7.0f, -1.0f)
 	};
-	bool[] liftActive;
+	Vector3 liftLineBasicPos = new Vector3(0.0f, 11.5f, 11.5f);
 	bool touchDown;
 	bool touchUp;
+	bool[] touchHold;
+	int[] touchHoldFingerId;
 	/////////////////////////////////////////////
 
 	//判定関連 変数宣言//////////////////////////
@@ -71,23 +77,27 @@ public class GameSceneManager : MonoBehaviour
 		1,
 		2
 	};
-	int maxHealth = 10000;
+	float maxHealth = 100.0f;
 	float tapJudgePosX = 1.5f;
-	int score;
+	float score;
 	int[] judge;
-	int nowCombo;
-	int maxCombo;
-	int nowHealth;
+	float nowCombo;
+	float maxCombo;
+	float nowHealth;
+	int judgeCount = 0;
+	float gapTimeAdd = 0.0f;
 	/////////////////////////////////////////////
 
 	//UI関連 変数宣言////////////////////////////
+	[SerializeField] Text fpsText;
+	[SerializeField] Text gapText;
 	[SerializeField] Text judgeText;
 	[SerializeField] CanvasGroup judgeTextCanvasGroup;
 	[SerializeField] Text comboText;
 	[SerializeField] CanvasGroup comboTextCanvasGroup;
 	[SerializeField] Text scoreText;
 	[SerializeField] Text healthText;
-	[SerializeField] Image healthBarImage;
+	[SerializeField] Slider healthSlider;
 	float textFadeSpeed = 5.0f;
 	bool judgeTextFadeOut;
 	bool comboTextFadeOut;
@@ -97,6 +107,7 @@ public class GameSceneManager : MonoBehaviour
 	void Awake()
 	{
 		time = 0.0f;
+		songPlayingUpdateTime = songPlayWaitTime;
 		songPlaying = false;
 		songPlayingTime = 0.0f;
 		noteDatas = new List<NoteData>[2]
@@ -111,13 +122,19 @@ public class GameSceneManager : MonoBehaviour
 		};
 		noteSpawnCount = new int[2];
 		noteSpawnEnd = new bool[2];
-		liftActive = new bool[2];
+		touchHold = new bool[2];
+		touchHoldFingerId = new int[2]
+		{
+			-1,
+			-1
+		}
+		;
 		touchDown = false;
 		touchUp = false;
-		score = 0;
+		score = 0.0f;
 		judge = new int[5];
-		nowCombo = 0;
-		maxCombo = 0;
+		nowCombo = 0.0f;
+		maxCombo = 0.0f;
 		nowHealth = maxHealth;
 		judgeTextFadeOut = false;
 		comboTextFadeOut = false;
@@ -129,8 +146,8 @@ public class GameSceneManager : MonoBehaviour
 		for (LaneEnum laneEnum = LaneEnum.right; laneEnum != LaneEnum.none; laneEnum++)
 		{
 			int laneInt = (int)laneEnum;
-			lift[laneInt].GetComponent<Renderer>().material.color = SelectSceneManager.liftColor;
-			lift[laneInt].GetComponent<Renderer>().material.SetColor("_EmissionColor", SelectSceneManager.liftColor);
+			lift[laneInt].GetComponent<SpriteRenderer>().color = SelectSceneManager.liftColor;
+			liftLine[laneInt].GetComponent<SpriteRenderer>().color = SelectSceneManager.liftLineColor;
 		}
 		songAudio.clip = (AudioClip)Resources.Load(SelectSceneManager.songFileString + "/Song");
 		NoteDataRead(SelectSceneManager.songFileString);
@@ -139,25 +156,31 @@ public class GameSceneManager : MonoBehaviour
 	}
 	void Update()
 	{
-		//仮実装////////////////////
-		//現在は左クリックでタッチ動作をさせている。後でスマホ実機に対応させる。/////
-		touchDown = Input.GetMouseButtonDown(0);
-		touchUp = Input.GetMouseButtonUp(0);
-		/////////////////////////////////////////////////////////////////////////////
-		///////////////////////////
+		float fps = 1f / Time.deltaTime;
+		fpsText.text = "FPS:" + fps.ToString("F0");
+		if (songPlaying) songPlayingUpdateTime += Time.deltaTime;
+		TouchCheck();
+
+		//PC判定確認用
+		
 	}
 	void FixedUpdate ()
 	{
 		time += Time.fixedDeltaTime;
 		if (!songPlaying && time >= songPlayWaitTime) SongPlay();
 		if (songPlaying) SongPlaying();
-		if (touchDown) TouchDown();
-		if (touchUp) TouchUp();
-		for (LaneEnum laneEnum = LaneEnum.right; laneEnum != LaneEnum.none; laneEnum++)
+
+		if (Input.GetKeyDown(KeyCode.F) || Input.GetKeyDown(KeyCode.J))
 		{
-			int laneInt = (int)laneEnum;
-			if (liftActive[laneInt]) LiftActive(laneEnum);
+			tapJudgePosX = 10.0f;
+			for (LaneEnum laneEnum = LaneEnum.right; laneEnum != LaneEnum.none; laneEnum++)
+			{
+				int laneInt = (int)laneEnum;
+				if (noteInstDatas[laneInt].Count > 0) TapJudgeCheck(laneEnum, 0);
+			}
+			tapJudgePosX = 1.5f;
 		}
+
 		if (judgeTextFadeOut) judgeTextFadeOut = TextFadeOut(judgeTextCanvasGroup);
 		if (comboTextFadeOut) comboTextFadeOut = TextFadeOut(comboTextCanvasGroup);
 	}
@@ -167,7 +190,6 @@ public class GameSceneManager : MonoBehaviour
 	void SongPlay()
 	{
 		songAudio.Play();
-		songPlayingTime = time - songPlayWaitTime;
 		songPlaying = true;
 	}
 	void SongPlaying()
@@ -202,8 +224,8 @@ public class GameSceneManager : MonoBehaviour
 		float noteSpeed = 1.0f;
 		float[] notePerfectJudgeTime = new float[2]
 		{
-			SelectSceneManager.musicData.offset,
-			SelectSceneManager.musicData.offset
+			SelectSceneManager.musicData.offset + SelectSceneManager.judgeGapTime,
+			SelectSceneManager.musicData.offset + SelectSceneManager.judgeGapTime
 		};
 		FeverEnum feverEnum = FeverEnum.no;
 		int noteDataReadLine = 0;
@@ -255,6 +277,7 @@ public class GameSceneManager : MonoBehaviour
 								notePerfectJudgeTime = notePerfectJudgeTime[laneInt],
 								noteSpawnTime = notePerfectJudgeTime[laneInt] - noteBasicPos[laneInt].y / (SelectSceneManager.noteBasicSpeed * noteSpeed),
 								noteSpawnPosX = float.Parse(notePosRead[notePosReadLine]),
+								noteColor = SelectSceneManager.noteColor[(int)feverEnum],
 								feverEnum = feverEnum,
 								laneEnum = laneEnum
 							}
@@ -273,12 +296,12 @@ public class GameSceneManager : MonoBehaviour
 		if (!noteSpawnEnd[laneInt] && noteDatas[laneInt][noteSpawnCount[laneInt]].noteSpawnTime <= songPlayingTime)
 		{
 			NoteData tempNoteData = noteDatas[laneInt][noteSpawnCount[laneInt]];
-			float gapPos = -(songPlayingTime - tempNoteData.noteSpawnTime) * tempNoteData.noteSpeed;
-			Color noteColor = SelectSceneManager.noteColor[(int)tempNoteData.feverEnum];
-			Vector3 notePos = noteBasicPos[laneInt] + new Vector3(tempNoteData.noteSpawnPosX, gapPos, gapPos);
-			tempNoteData.noteInst = Instantiate(notePrefab, notePos, Quaternion.identity);
-			tempNoteData.noteInst.GetComponent<Renderer>().material.color = noteColor;
-			tempNoteData.noteInst.GetComponent<Renderer>().material.SetColor("_EmissionColor", noteColor);
+			float noteGapPos = -(songPlayingTime - tempNoteData.noteSpawnTime) * tempNoteData.noteSpeed;
+			Vector3 notePos = noteBasicPos[laneInt] + new Vector3(tempNoteData.noteSpawnPosX, noteGapPos, noteGapPos);
+			Vector3 noteRot = new Vector3(45.0f, 0.0f, 0.0f);
+			Color noteColor = tempNoteData.noteColor;
+			tempNoteData.noteInst = Instantiate(notePrefab, notePos, Quaternion.Euler(noteRot));
+			tempNoteData.noteInst.GetComponent<SpriteRenderer>().color = noteColor;
 			noteInstDatas[laneInt].Add(tempNoteData);
 			noteInstDatas[laneInt].Sort(NotePerfectJudgeTimeCompare);
 			noteSpawnCount[laneInt]++;
@@ -299,16 +322,29 @@ public class GameSceneManager : MonoBehaviour
 		int judgeInt = (int)judgeEnum;
 		int laneInt = (int)laneEnum;
 		int feverInt = (int)noteInstDatas[laneInt][noteNum].feverEnum;
+
+		//判定デバッグ
+		//gapTimeAdd += noteInstDatas[laneInt][noteNum].notePerfectJudgeTime - songPlayingTime;
+		//judgeCount++;
+		//gapText.text = "gap:" + (gapTimeAdd / judgeCount);
+
+
 		judge[judgeInt]++;
 		JudgeTextUpdate(judgeEnum);
 		if (judgeEnum == JudgeEnum.perfect || judgeEnum == JudgeEnum.great || judgeEnum == JudgeEnum.good)
 		{
 			int tempJudgeCoef = judgeCoef[judgeInt];
 			int tempFeverCoef = feverCoef[feverInt];
-			int tempHealth = nowHealth + tempJudgeCoef * tempFeverCoef * SelectSceneManager.musicData.heel;
-			judgeAudio.Play();
+			float tempHealth = nowHealth + tempJudgeCoef * tempFeverCoef * SelectSceneManager.musicData.heel;
+			Vector3 noteParticlePos = noteInstDatas[laneInt][noteNum].noteInst.transform.position;
+			Color noteParticleColor = noteInstDatas[laneInt][noteNum].noteColor;
+			ParticleSystem noteParticleInst = Instantiate(noteParticlePrefab, noteParticlePos, Quaternion.identity);
+			ParticleSystem.MainModule noteParticleInstMain = noteParticleInst.main;
+			noteParticleInstMain.startColor = noteParticleColor;
+			noteParticleInst.Play();
+			judgeAudio.PlayOneShot(judgeClip);
 			nowCombo++;
-			score += (int)(tempJudgeCoef * tempFeverCoef * tempJudgeCoef * nowCombo * float.Parse(Mathf.Sqrt(nowCombo).ToString("F2")));
+			score += tempJudgeCoef * tempFeverCoef * Mathf.Sqrt(nowCombo) * Mathf.Sqrt(SelectSceneManager.musicData.difficulty) * 10.0f;
 			nowHealth = tempHealth <= maxHealth ? tempHealth : maxHealth;
 			ScoreTextUpdate();
 			ComboTextUpdate();
@@ -316,13 +352,13 @@ public class GameSceneManager : MonoBehaviour
 		else if (judgeEnum == JudgeEnum.bad || judgeEnum == JudgeEnum.miss)
 		{
 			int tempFeverCoef = feverCoef[feverInt];
-			int tempHealth = nowHealth - tempFeverCoef * SelectSceneManager.musicData.damage;
+			float tempHealth = nowHealth - tempFeverCoef * SelectSceneManager.musicData.damage;
 			nowCombo = 0;
 			nowHealth = tempHealth >= 0 ? tempHealth : 0;
 		}
 		HealthTextUpdate();
-		HealthBarImageUpdate();
-		Destroy(noteInstDatas[laneInt][noteNum].noteInst);
+		HealthSliderImageUpdate();
+		Destroy(noteInstDatas[laneInt][noteNum].noteInst.gameObject);
 		noteInstDatas[laneInt].RemoveAt(noteNum);
 	}
 	void TapJudgeCheck(LaneEnum laneEnum, int noteNum)
@@ -330,13 +366,16 @@ public class GameSceneManager : MonoBehaviour
 		int laneInt = (int)laneEnum;
 		float liftPosX = lift[laneInt].transform.position.x;
 		float notePosX = noteInstDatas[laneInt][noteNum].noteInst.transform.position.x;
+
+		float inputGapTime = songPlayingTime - (songPlayingUpdateTime - songPlayWaitTime);
+
 		if (liftPosX + tapJudgePosX >= notePosX - tapJudgePosX && liftPosX - tapJudgePosX <= notePosX + tapJudgePosX)
 		{
 			float notePerfectJudgeTime = noteInstDatas[laneInt][noteNum].notePerfectJudgeTime;
-			for (JudgeEnum judgeEnum = JudgeEnum.perfect; judgeEnum != JudgeEnum.bad; judgeEnum++)
+			for (JudgeEnum judgeEnum = JudgeEnum.perfect; judgeEnum != JudgeEnum.miss; judgeEnum++)
 			{
 				int judgeInt = (int)judgeEnum;
-				if (songPlayingTime >= notePerfectJudgeTime - tapJudgeTime[judgeInt] && songPlayingTime <= notePerfectJudgeTime + tapJudgeTime[judgeInt])
+				if (songPlayingTime >= notePerfectJudgeTime - tapJudgeTime[judgeInt] - inputGapTime && songPlayingTime <= notePerfectJudgeTime + tapJudgeTime[judgeInt] - inputGapTime)
 				{
 					Judge(judgeEnum, laneEnum, noteNum);
 					return;
@@ -351,10 +390,10 @@ public class GameSceneManager : MonoBehaviour
 		if (songPlayingTime >= notePerfectJudgeTime)
 		{
 			noteInstDatas[laneInt][noteNum].holdJudge = false;
-			if (!liftActive[laneInt]) return false;
+			if (!touchHold[laneInt]) return false;
 			float liftPosX = lift[laneInt].transform.position.x;
 			float notePosX = noteInstDatas[laneInt][noteNum].noteInst.transform.position.x;
-			for (JudgeEnum judgeEnum = JudgeEnum.perfect; judgeEnum != JudgeEnum.bad; judgeEnum++)
+			for (JudgeEnum judgeEnum = JudgeEnum.perfect; judgeEnum != JudgeEnum.miss; judgeEnum++)
 			{
 				int judgeInt = (int)judgeEnum;
 				if (liftPosX + holdJudgePos[judgeInt] >= notePosX - holdJudgePos[judgeInt] && liftPosX - holdJudgePos[judgeInt] <= notePosX + holdJudgePos[judgeInt])
@@ -382,44 +421,66 @@ public class GameSceneManager : MonoBehaviour
 		int laneInt = (int)laneEnum;
 		int noteNum = 0;
 		float notePerfectJudgeTime = noteInstDatas[laneInt][noteNum].notePerfectJudgeTime;
-		if (songPlayingTime >= notePerfectJudgeTime) Judge(JudgeEnum.perfect, laneEnum, noteNum);
+		//if (songPlayingTime >= notePerfectJudgeTime) Judge(JudgeEnum.perfect, laneEnum, noteNum);
+		if (songPlayingTime >= notePerfectJudgeTime) TapJudgeCheck(laneEnum, noteNum);
 	}
 	/////////////////////////////////////////////
 
 	//タッチ関連 関数////////////////////////////
-
-	void TouchDown()
+	void TouchCheck()
 	{
-		Vector3 tapPos = Input.mousePosition;
-		if (tapPos.y < halfScreenPos.y)
+		for (int touchNum = 0; touchNum < Input.touchCount; touchNum++)
 		{
-			LaneEnum laneEnum = tapPos.x >= halfScreenPos.x ? LaneEnum.right : LaneEnum.left;
+			Touch touch = Input.GetTouch(touchNum);
+			Vector3 touchPos = touch.position;
+			int fingerId = touch.fingerId;
+			TouchPhase touchPhase = touch.phase;
+			if (touchPhase == TouchPhase.Began) TouchDown(touchPos, fingerId);
+			for (LaneEnum laneEnum = LaneEnum.right; laneEnum != LaneEnum.none; laneEnum++)
+			{
+				int laneInt = (int)laneEnum;
+				if (fingerId == touchHoldFingerId[laneInt])
+				{
+					if (touchPhase == TouchPhase.Moved || touchPhase == TouchPhase.Stationary) TouchHold(laneEnum, touchPos);
+					if (touchPhase == TouchPhase.Ended || touchPhase == TouchPhase.Canceled) TouchUp(laneEnum);
+				}
+			}
+		}
+	}
+	void TouchDown(Vector3 touchPos, int fingerID)
+	{
+		if (touchPos.y < halfScreenPos.y)
+		{
+			LaneEnum laneEnum = touchPos.x >= halfScreenPos.x ? LaneEnum.right : LaneEnum.left;
 			int laneInt = (int)laneEnum;
-			lift[laneInt].SetActive(true);
-			liftActive[laneInt] = true;
-			LiftActive(laneEnum);
+			TouchHold(laneEnum, touchPos);
+			lift[laneInt].gameObject.SetActive(true);
+			liftLine[laneInt].gameObject.SetActive(true);
+			touchHold[laneInt] = true;
+			touchHoldFingerId[laneInt] = fingerID;
 			if (noteInstDatas[laneInt].Count > 0) TapJudgeCheck(laneEnum, 0);
+			Debug.Log("TouchDown");
 		}
 	}
-	void TouchUp()
-	{
-		for (LaneEnum laneEnum = LaneEnum.right; laneEnum != LaneEnum.none; laneEnum++)
-		{
-			int laneInt = (int)laneEnum;
-			lift[laneInt].SetActive(false);
-			liftActive[laneInt] = false;
-		}
-	}
-	void LiftActive(LaneEnum laneEnum)
+	void TouchHold(LaneEnum laneEnum, Vector3 touchPos)
 	{
 		int laneInt = (int)laneEnum;
-		Vector3 tapPos = Input.mousePosition;
-		tapPos.z = -9.0f;
-		Vector3 tapWorldPos = -camera.ScreenToWorldPoint(tapPos);
-		float liftPosX = tapWorldPos.x;
+		touchPos.z -= cam.transform.position.z;
+		Vector3 touchWorldPos = cam.ScreenToWorldPoint(touchPos);
+		float liftPosX = touchWorldPos.x;
 		liftPosX = liftPosX >= liftPosRest[laneInt].x ? liftPosX : liftPosRest[laneInt].x;
 		liftPosX = liftPosX < liftPosRest[laneInt].y ? liftPosX : liftPosRest[laneInt].y;
 		lift[laneInt].transform.position = transform.right * liftPosX;
+		liftLine[laneInt].transform.position = transform.right * liftPosX;
+	}
+	void TouchUp(LaneEnum laneEnum)
+	{
+		int laneInt = (int)laneEnum;
+		lift[laneInt].gameObject.SetActive(false);
+		liftLine[laneInt].gameObject.SetActive(false);
+		touchHold[laneInt] = false;
+		touchHoldFingerId[laneInt] = -1;
+		Debug.Log("TouchUp");
 	}
 	/////////////////////////////////////////////
 
@@ -446,7 +507,7 @@ public class GameSceneManager : MonoBehaviour
 				break;
 			case JudgeEnum.miss:
 				//灰色で"みす"
-				judgeText.text = "<color=#7f7f7f>みす</color>";
+				judgeText.text = "<color=#1f1f1f>みす</color>";
 				break;
 		}
 		judgeTextCanvasGroup.alpha = 1;
@@ -460,15 +521,15 @@ public class GameSceneManager : MonoBehaviour
 	}
 	void ScoreTextUpdate()
 	{
-		scoreText.text = "Score" + '\n' + '\n' + score.ToString();
+		scoreText.text = "Score" + '\n' + '\n' + score.ToString("F0");
 	}
 	void HealthTextUpdate()
 	{
-		healthText.text = nowHealth.ToString();
+		healthText.text = nowHealth.ToString("F0");
 	}
-	void HealthBarImageUpdate()
+	void HealthSliderImageUpdate()
 	{
-		healthBarImage.fillAmount = (float)nowHealth / maxHealth;
+		healthSlider.value = nowHealth;
 	}
 	bool TextFadeOut(CanvasGroup canvasGroup)
 	{

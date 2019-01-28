@@ -4,6 +4,7 @@
 	public string artist;
 	public float basicBpm;
 	public float offset;
-	public int damage;
-	public int heel;
+	public float difficulty;
+	public float damage;
+	public float heel;
 }
