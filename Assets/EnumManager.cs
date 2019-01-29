@@ -4,7 +4,8 @@
 	great = 1,
 	good = 2,
 	bad = 3,
-	miss = 4
+	miss = 4,
+	none = 5
 }
 public enum LaneEnum
 {
@@ -14,7 +15,9 @@ public enum LaneEnum
 }
 public enum SongFileEnum
 {
-	Presenter = 0
+	Presenter = 0,
+	InfinityMofulity = 1,
+	none = 2
 }
 public enum FeverEnum
 {
